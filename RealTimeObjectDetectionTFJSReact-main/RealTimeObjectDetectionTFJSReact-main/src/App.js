@@ -1,7 +1,6 @@
 // Import dependencies
 import React, { useRef, useState, useEffect } from "react";
 import * as tf from "@tensorflow/tfjs";
-import * as cocossd from "@tensorflow-models/coco-ssd";
 import Webcam from "react-webcam";
 import "./App.css";
 import { drawRect } from "./utilities";
@@ -12,12 +11,13 @@ function App() {
 
   // Main function
   const runCoco = async () => {
-    const net = await cocossd.load();
+    //const net = await cocossd.load();
+   const net = tf.loadGraphModel("https://cloud-object-storage-cos-standard-ea9.s3.us-east.cloud-object-storage.appdomain.cloud/model.json")
     console.log("Handpose model loaded.");
     //  Loop and detect hands
     setInterval(() => {
       detect(net);
-    }, 10);
+    }, 16.7);
   };
 
   const detect = async (net) => {
@@ -25,7 +25,7 @@ function App() {
     if (
       typeof webcamRef.current !== "undefined" &&
       webcamRef.current !== null &&
-      webcamRef.current.video.readyState === 4
+      webcamRef.current.video.readyState === 1
     ) {
       // Get Video Properties
       const video = webcamRef.current.video;
@@ -41,11 +41,24 @@ function App() {
       canvasRef.current.height = videoHeight;
 
       // Make Detections
-      const obj = await net.detect(video);
+      //const obj = await net.detect(video);
+      const img = tf.browser.fromPixels(video);
+      const resized = tf.image.resizeBilinear(img,[640,480]);
+      const casted = resized.cast("int32");
+      const expanded = casted.expandDims(0);
+      const obj = await net.executeAsync(expanded);
+      console.log(obj);
 
       // Draw mesh
       const ctx = canvasRef.current.getContext("2d");
       drawRect(obj, ctx); 
+
+
+      tf.dispose(img);
+      tf.dispose(resized);
+      tf.dispose(casted);
+      tf.dispose(expanded);
+      tf.dispose(obj);
     }
   };
 
